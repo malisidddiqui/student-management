@@ -1,0 +1,43 @@
+
+---
+- name: Deploy Laravel Student Management on Kubernetes
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  tasks:
+    - name: Apply MySQL configuration
+      ansible.builtin.command:
+        cmd: kubectl apply -f k8s/mysql.yaml
+
+    - name: Wait for MySQL deployment
+      ansible.builtin.command:
+        cmd: kubectl rollout status deployment/mysql --timeout=180s
+      changed_when: false
+
+    - name: Apply Laravel application configuration
+      ansible.builtin.command:
+        cmd: kubectl apply -f k8s/app.yaml
+
+    - name: Wait for Laravel deployment
+      ansible.builtin.command:
+        cmd: kubectl rollout status deployment/student-management --timeout=180s
+      changed_when: false
+
+    - name: Run Laravel database migrations
+      ansible.builtin.command:
+        cmd: kubectl exec deployment/student-management -- php artisan migrate --force
+
+    - name: Verify Kubernetes pods
+      ansible.builtin.command:
+        cmd: kubectl get pods
+      register: pod_status
+      changed_when: false
+
+    - name: Display pod status
+      ansible.builtin.debug:
+        var: pod_status.stdout
+
+    - name: Display application URL
+      ansible.builtin.debug:
+        msg: "Access the app using: http://192.168.49.2:30080"
